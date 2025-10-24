@@ -1,6 +1,6 @@
 {
   "name": "@potentii/use-deferred-fetch",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Deferred fetch for Vue",
   "author": "Guilherme Reginaldo Ruella <potentii@gmail.com>",
   "license": "MIT",
@@ -32,8 +32,8 @@
   },
   "homepage": "https://github.com/Potentii/use-deferred-fetch#readme",
   "peerDependencies": {
-    "vue": "^3.0.0",
-    "@vueuse/core": "^13.0.0"
+    "vue": ">=3.0.0",
+    "@vueuse/core": ">=13.0.0"
   }
 }
 
