@@ -1,0 +1,39 @@
+{
+  "name": "@potentii/use-deferred-fetch",
+  "version": "1.0.0",
+  "description": "Deferred fetch for Vue",
+  "author": "Guilherme Reginaldo Ruella <potentii@gmail.com>",
+  "license": "MIT",
+
+  "main": "main.mjs",
+  "type": "module",
+
+  "scripts": {
+  },
+
+  "files": [
+    "main.mjs",
+    "libs/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "deferred",
+    "fetch",
+    "vue",
+    "store"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Potentii/use-deferred-fetch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Potentii/use-deferred-fetch/issues"
+  },
+  "homepage": "https://github.com/Potentii/use-deferred-fetch#readme",
+  "peerDependencies": {
+    "vue": "^3.*.*",
+    "@vueuse/core": "^13.*.*"
+  }
+}
+
