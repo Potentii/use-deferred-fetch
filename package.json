@@ -1,6 +1,6 @@
 {
   "name": "@potentii/use-deferred-fetch",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Deferred fetch for Vue",
   "author": "Guilherme Reginaldo Ruella <potentii@gmail.com>",
   "license": "MIT",
