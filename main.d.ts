@@ -3,9 +3,10 @@ import DeferredContext, {DeferredContextOpts} from './libs/deferred-context'
 import Deferred from './libs/deferred'
 
 export {
-    useDeferredFetch,
     DeferredContext,
     Deferred,
 }
 
 export type {DeferredContextOpts}
+
+export default useDeferredFetch;

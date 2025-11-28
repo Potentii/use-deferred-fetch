@@ -1,14 +1,12 @@
-import {computed, ref} from "vue";
+import {ref} from "vue";
 import {useDebounceFn} from "@vueuse/core";
 import Deferred from "./deferred.mjs";
 
 
 /**
- * @template T, U
+ * @template K, V
  * @typedef {{
- *  onRequested: (ids: U[], resolveItem: (id: U, item: T) => void, rejectItem: (id: U, error: Error) => void) => any,
- *  getId: (T) => U,
- *  maxItemsPerRequest: number,
+ *  onRequested: (deferreds: Deferred<K,V>[]) => (Promise<(?(Deferred<K,V>[])|void)>|?(Deferred<K,V>[])|void),
  *  debounceMaxWait: number,
  *  debounceDelay: number,
  * }} DeferredContextOpts
@@ -23,35 +21,26 @@ const DEFAULT_MAX_WAIT = 3000;
 
 
 /**
- * @template T, U
+ * @template K, V
  */
 export default class DeferredContext {
 
     /**
      *
-     * @type {import('vue').Ref<Map<U, T>>}
-     */
-    #itemsById = ref(new Map());
-    /**
-     *
-     * @type {import('vue').Ref<Map<U, Error>>}
-     */
-    #errorsById = ref(new Map());
-    /**
-     *
-     * @type {import('vue').Ref<Set<U>>}
+     * @type {import('vue').Ref<Set<K>>}
      */
     #pendingIds = ref(new Set());
+
     /**
      *
-     * @type {import('vue').Ref<Map<U, boolean>>}
+     * @type {import('vue').Ref<Map<K,Deferred<K,V>>>}
      */
-    #loadingStates = ref(new Map());
+    #deferredById = ref(new Map());
 
 
     /**
      *
-     * @type {?DeferredContextOpts<T,U>}
+     * @type {?DeferredContextOpts<K,V>}
      */
     #opts;
 
@@ -67,155 +56,126 @@ export default class DeferredContext {
 
 
 
+
+
+
     /**
      *
-     * @param {U} id
-     * @param {T} item
+     * @return {Promise<void>}
      */
-    #resolveItem(id, item){
-        this.#itemsById.value.set(id, item);
-        this.#loadingStates.value.set(id, false);
-    };
+    async #debounceFn(){
+        if (this.#pendingIds.value.size === 0) return;
+
+        const pendingDeferreds = [...this.#pendingIds.value]
+            .map(pendingId => this.#deferredById.value.get(pendingId));
+
+        this.#pendingIds.value.clear();
+
+        try {
+
+            const result = await this.#opts.onRequested(pendingDeferreds);
+
+            if(Array.isArray(result)){
+                for (let deferred of result) {
+                    if(!deferred)
+                        continue;
+                    if(deferred instanceof Deferred){
+                        deferred.loading = false;
+                        this.upsert(deferred);
+                    } else{
+                        throw new TypeError("onRequested optional return must be an array of Deferreds");
+                    }
+                }
+            }
+        } catch (err) {
+            for (let deferred of pendingDeferreds) {
+                deferred.loading = false;
+                deferred.error = err;
+            }
+        }
+
+
+    }
+
+
+
 
     /**
      *
-     * @param {U} id
-     * @param {Error} error
-     */
-    #rejectItem(id, error){
-        this.#errorsById.value.set(id, error);
-        this.#loadingStates.value.set(id, false);
-    };
-
-
-
-    /**
-     *
-     * @param {?DeferredContextOpts<T,U>} [opts]
+     * @param {?DeferredContextOpts<K,V>} [opts]
      */
     constructor(opts) {
         this.#opts = opts;
 
-
         const debounceDelay = this.#opts?.debounceDelay ?? DEFAULT_DEBOUNCE_DELAY;
         const debounceMaxWait = this.#opts?.debounceMaxWait ?? DEFAULT_MAX_WAIT;
 
-
-        this.#debouncedFetch = useDebounceFn(async () => {
-            if (this.#pendingIds.value.size === 0) return;
-
-            const idsToFetch = Array.from(this.#pendingIds.value);
-            this.#pendingIds.value.clear();
-
-            try {
-                await this.#opts.onRequested(idsToFetch, this.#resolveItem, this.#rejectItem);
-            } catch (err) {
-                for (let id of idsToFetch) {
-                    this.#rejectItem(id, err);
-                }
-            }
-
-        }, debounceDelay, { maxWait: debounceMaxWait });
+        this.#debouncedFetch = useDebounceFn(this.#debounceFn, debounceDelay, { maxWait: debounceMaxWait });
     }
 
 
 
     /**
      *
-     * @param {U} id
-     * @returns {Deferred<T>}
+     * @param {K} id
+     * @returns {Deferred<K, V>}
      */
-    getItemById(id){
-        // *Returning existing item if we have it:
-        if (this.#itemsById.value.has(id))
-            return new Deferred(this.#loadingStates.value.get(id), this.#itemsById.value.get(id), null);
-
-        // *Ignoring request if already loading:
-        if (this.#loadingStates.value.get(id))
-            return new Deferred(true, this.#itemsById.value.get(id) || null, null);
-
-        // *Queueing request if not pending yet:
-        if (!this.#pendingIds.value.has(id)) {
+    getById(id){
+        if(!this.#deferredById.value.has(id)){
+            // *Queueing request if not created yet:
+            this.#deferredById.value.set(id, new Deferred(id, true));
             this.#pendingIds.value.add(id);
-            this.#loadingStates.value.set(id, true);
+
             this.#debouncedFetch(); // Not awaiting the Promise
         }
 
-        // *Returning loading state while waiting:
-        return new Deferred(true, null, null);
+        return this.#deferredById.value.get(id);
     }
+
 
 
     /**
      *
-     * @param {T[]} items
+     * @param {Deferred<K,V>} deferred
      */
-    upsertItems(items){
-        for(const item of items){
-            const id = this.#opts.getId(item);
-            if(this.#pendingIds.value.has(id))
-                this.#pendingIds.value.delete(id);
+    upsert(deferred){
+        if(!deferred)
+            throw new TypeError("Deferred must not be null");
+        if(deferred.loading)
+            throw new Error("Deferred must not be loading");
 
-            this.#itemsById.value.set(id, item);
-            this.#loadingStates.value.set(id, false);
+        const id = deferred.id;
+        this.#deferredById.value.set(id, deferred);
+        this.#pendingIds.value.delete(id);
+    }
+
+
+
+    /**
+     *
+     * @param {K} id
+     */
+    removeById(id){
+        this.#pendingIds.value.delete(id);
+        this.#deferredById.value.delete(id);
+    }
+
+
+
+    /**
+     *
+     * @param {K} id
+     */
+    invalidateById(id){
+        if(this.#deferredById.value.has(id)){
+            this.#deferredById.value.get(id).loading = true;
+        } else{
+            this.#deferredById.value.set(id, new Deferred(id, true));
         }
-    }
 
-
-    /**
-     *
-     * @param {T[]} items
-     */
-    removeItems(items){
-        this.removeItemsById(items.map(item => this.#opts.getId(item)));
-    }
-    /**
-     *
-     * @param {U[]} ids
-     */
-    removeItemsById(ids){
-        for(const id of ids)
-            this.#itemsById.value.delete(id);
-    }
-
-
-    /**
-     *
-     * @param {T[]} items
-     */
-    invalidateItems(items){
-        this.invalidateItemsById(items.map(item => this.#opts.getId(item)));
-    }
-    /**
-     *
-     * @param {U[]} ids
-     */
-    invalidateItemsById(ids){
-        for(const id of ids) {
-            this.#pendingIds.value.add(id);
-            this.#loadingStates.value.set(id, true);
-        }
+        this.#pendingIds.value.add(id);
 
         this.#debouncedFetch(); // Not awaiting the Promise
     }
-
-
-    /**
-     *
-     * @type {import('vue').ComputedRef<Map<U,T>>}
-     */
-    loadedByIds = computed(() => this.#itemsById.value);
-
-    /**
-     *
-     * @type {import('vue').ComputedRef<U[]>}
-     */
-    loadedIds = computed(() => [...(this.#itemsById.value?.keys() || [])]);
-
-    /**
-     *
-     * @type {import('vue').ComputedRef<T[]>}
-     */
-    loadedItems = computed(() => [...(this.#itemsById.value?.values() || [])]);
 
 }

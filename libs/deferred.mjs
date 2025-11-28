@@ -1,7 +1,12 @@
 /**
- * @template T
+ * @template K, V
  */
 export default class Deferred{
+
+    /**
+     * @type {K}
+     */
+    id;
 
     /**
      * @type {boolean}
@@ -9,7 +14,7 @@ export default class Deferred{
     loading;
 
     /**
-     * @type {?T}
+     * @type {?V}
      */
     data;
 
@@ -20,40 +25,53 @@ export default class Deferred{
 
     /**
      *
+     * @param {K} id
      * @param {boolean} loading
-     * @param {?T} data
-     * @param {?Error} error
+     * @param {?V} [data]
+     * @param {?Error} [error]
      */
-    constructor(loading, data, error){
+    constructor(id, loading, data, error){
+        this.id = id;
         this.loading = loading;
         this.data = data;
         this.error = error;
     }
 
+    /**
+     *
+     * @param {K} id
+     * @param {V} data
+     * @return {Deferred<K,V>}
+     */
+    static resolved(id, data){
+        return new Deferred(id, false, data, null);
+    }
 
     /**
-     * Map the data of the deferred to a new value
-     * @template T
-     * @template U
-     * @param {(data:T) => U} mapFn
-     * @return {Deferred<U>}
+     *
+     * @param {K} id
+     * @param {Error} error
+     * @return {Deferred<K,V>}
      */
-    map(mapFn){
-        if(this.data)
-            return new Deferred(this.loading, mapFn(this.data), this.error);
-        return this;
+    static rejected(id, error){
+        return new Deferred(id, false, null, error);
     }
 
 
     /**
-     * Flatten the deferred value if it is another deferred
-     * @return {Deferred<T.data>}
+     * @param {V} data
      */
-    flat(){
-        if(this.data instanceof Deferred)
-            return new Deferred(this.data.loading, this.data.data, this.data.error);
-        return this;
+    resolve(data){
+        this.loading = false;
+        this.data = data;
     }
 
+    /**
+     * @param {Error} error
+     */
+    reject(error){
+        this.loading = false;
+        this.error = error;
+    }
 
 }
