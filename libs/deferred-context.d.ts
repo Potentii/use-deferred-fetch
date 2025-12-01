@@ -4,7 +4,9 @@ export interface DeferredContextOpts<K, V> {
     /**
      * Resolver called to fetch the value for a given id.
      */
-    resolve: (id: K) => Promise<V> | V
+    resolve: (id: K) => Promise<V> | V,
+
+    logErrors?: boolean | null,
 }
 
 export default class DeferredContext<K, V> {
