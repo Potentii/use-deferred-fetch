@@ -6,6 +6,7 @@ import Deferred from "./deferred.mjs";
  * @template K, V
  * @typedef {{
  *     resolve: (id: K) => (Promise<V>|V),
+ *     logErrors: ?boolean,
  * }} DeferredContextOpts
  */
 
@@ -39,6 +40,7 @@ export default class DeferredContext {
     }
 
 
+
     /**
      *
      * @param {Deferred<K,V>} deferred
@@ -50,14 +52,11 @@ export default class DeferredContext {
             const data = await this.#opts.resolve(deferred.id);
             this.#deferredById.value.set(deferred.id, Deferred.resolved(deferred.id, data));
         } catch (err) {
+            if(this.#opts.logErrors)
+                console.error(err);
             this.#deferredById.value.set(deferred.id, Deferred.rejected(deferred.id, err));
         }
     }
-
-
-
-
-
 
 
 
@@ -88,6 +87,8 @@ export default class DeferredContext {
         this.#deferredById.value.set(id, Deferred.resolved(id, data));
     }
 
+
+
     /**
      *
      * @param {K} id
@@ -96,6 +97,7 @@ export default class DeferredContext {
     upsertRejected(id, error){
         this.#deferredById.value.set(id, Deferred.rejected(id, error));
     }
+
 
 
     /**
@@ -127,7 +129,6 @@ export default class DeferredContext {
         if(this.#deferredById.value.has(id)){
             deferred = this.#deferredById.value.get(id);
             this.#deferredById.value.set(deferred.id, deferred.withLoading(true));
-            // deferred.loading = true;
         } else{
             deferred = new Deferred(id, true);
             this.#deferredById.value.set(id, deferred);
