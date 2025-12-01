@@ -1,11 +1,11 @@
-import {useDeferredFetch} from "./libs/use-deferred-fetch.mjs";
-import {Deferred} from "./libs/deferred.mjs";
-
-
+import useDeferredContext from "./libs/use-deferred-context.mjs";
+import DeferredContext from "./libs/deferred-context.mjs";
+import Deferred from "./libs/deferred.mjs";
 
 export {
-    useDeferredFetch,
+    DeferredContext,
     Deferred,
 };
 
 
+export default useDeferredContext;
