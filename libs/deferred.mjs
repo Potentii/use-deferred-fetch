@@ -59,6 +59,35 @@ export default class Deferred{
 
 
     /**
+     *
+     * @param {boolean} loading
+     * @return {Deferred<K,V>}
+     */
+    withLoading(loading){
+        return new Deferred(this.id, loading, this.data, this.error);
+    }
+
+    /**
+     *
+     * @param {V} data
+     * @return {Deferred<K,V>}
+     */
+    withData(data){
+        return new Deferred(this.id, this.loading, data, this.error);
+    }
+
+    /**
+     *
+     * @param {?Error} error
+     * @return {Deferred<K,V>}
+     */
+    withError(error){
+        return new Deferred(this.id, this.loading, this.data, error);
+    }
+
+
+
+    /**
      * @param {V} data
      */
     resolve(data){

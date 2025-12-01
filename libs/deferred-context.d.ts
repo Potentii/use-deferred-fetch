@@ -1,57 +1,30 @@
-import type {ComputedRef} from 'vue'
 import Deferred from './deferred'
 
-export interface DeferredContextOpts<T, U> {
+export interface DeferredContextOpts<K, V> {
     /**
-     * Called when there are pending ids to be fetched.
-     * Implementations should resolve or reject each id.
+     * Resolver called to fetch the value for a given id.
      */
-    onRequested: (
-        ids: U[],
-        resolveItem: (id: U, item: T) => void,
-        rejectItem: (id: U, error: Error) => void
-    ) => any
-
-    /** Returns the id for a given item */
-    getId: (item: T) => U
-
-    /** Maximum number of items to request in one batch (if implemented by user). */
-    maxItemsPerRequest?: number
-
-    /** Maximum time the debounce can wait before forcing a request (ms). */
-    debounceMaxWait?: number
-
-    /** Debounce delay between requests (ms). */
-    debounceDelay?: number
+    resolve: (id: K) => Promise<V> | V
 }
 
-export default class DeferredContext<T, U> {
-    constructor(opts?: DeferredContextOpts<T, U> | null)
+export default class DeferredContext<K, V> {
+    constructor(opts?: DeferredContextOpts<K, V> | null)
 
-    /** Request a single item by id. May trigger a deferred fetch. */
-    getItemById(id: U): Deferred<T>
+    /** Request a single deferred value by id. Triggers a fetch if not cached. */
+    getById(id: K): Deferred<K, V>
 
-    /** Insert or update items in the internal cache. */
-    upsertItems(items: T[]): void
+    /** Upsert a resolved value for id. */
+    upsertResolved(id: K, data: V): void
 
-    /** Remove items from the internal cache. */
-    removeItems(items: T[]): void
+    /** Upsert a rejected value for id. */
+    upsertRejected(id: K, error: Error): void
 
-    /** Remove items by their ids from the internal cache. */
-    removeItemsById(ids: U[]): void
+    /** Insert or update a single Deferred in the internal cache. */
+    upsert(deferred: Deferred<K, V>): void
 
-    /** Mark the given items as stale and schedule refetch. */
-    invalidateItems(items: T[]): void
+    /** Remove a value from the internal cache by id. */
+    removeById(id: K): void
 
-    /** Mark the given ids as stale and schedule refetch. */
-    invalidateItemsById(ids: U[]): void
-
-    /** Map of loaded items indexed by id. */
-    readonly loadedByIds: ComputedRef<Map<U, T>>
-
-    /** Array of loaded ids. */
-    readonly loadedIds: ComputedRef<U[]>
-
-    /** Array of loaded items. */
-    readonly loadedItems: ComputedRef<T[]>
+    /** Mark the given id as stale and refetch. */
+    invalidateById(id: K): void
 }
